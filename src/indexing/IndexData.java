@@ -61,7 +61,7 @@ class IndexData {
           useCompoundFile = false;
           break;
         case "-help":
-          System.out.println("java indexing.IndexData [-help] [-index INDEX_PATH] [-num_docs NUM_DOCS] [-update]");
+          System.out.println(usage());
           System.exit(0);
         default:
           throw new IllegalArgumentException("unsupported parameter " + args[i]);
@@ -125,6 +125,17 @@ class IndexData {
       System.out.println("Error reading from " + indexPath + ": " + e.getMessage());
       System.exit(1);
     }
+  }
+
+  private static String usage() {
+    return "java indexing.IndexData [-help]\n"
+    + "\t[-index INDEX_PATH]\n"
+    + "\t[-num_docs NUM_DOCS]\n"
+    + "\t[-update]\n"
+    + "\t[-docs_per_segment DOCS_PER_SEGMENT]\n"
+    + "\t[-info_stream INFO_STREAM_FILE]\n"
+    + "\t[-dict DICT_FILE]\n"
+    + "\t[-disable_compound_file]";
   }
 
   private void indexDocs(IndexWriter writer, int numDocs, List<String> dict) throws IOException {
