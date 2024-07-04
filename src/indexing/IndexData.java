@@ -34,6 +34,7 @@ class IndexData {
     boolean update = false;
     String infoStreamFile = null;
     String dictFile = "/usr/share/dict/words";
+    boolean useCompoundFile = true;
 
     // Parse command-line arguments
     for (int i=0; i<args.length; i++) {
@@ -55,6 +56,9 @@ class IndexData {
           break;
         case "-dict":
           dictFile = args[++i];
+          break;
+        case "-disable_compound_file":
+          useCompoundFile = false;
           break;
         case "-help":
           System.out.println("java indexing.IndexData [-help] [-index INDEX_PATH] [-num_docs NUM_DOCS] [-update]");
@@ -93,6 +97,7 @@ class IndexData {
 
     // Defaults: standard analyzer
     IndexWriterConfig iwc = new IndexWriterConfig();
+    iwc.setUseCompoundFile(useCompoundFile);
     iwc.setMaxBufferedDocs(docsPerSegment);
     // Set a really high (1GB) RAM buffer so we hit the document buffer limit first
     iwc.setRAMBufferSizeMB(1 << 30);
