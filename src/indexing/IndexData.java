@@ -83,6 +83,10 @@ class IndexData {
     } catch (IOException e) {
       System.out.println("Dictionary words file " + dictFile + " not found: " + e.getMessage());
     }
+    if (dict.size() == 0) {
+      System.out.println("Dictionary " + dictFile + " is empty");
+      System.exit(1);
+    }
     System.out.println("Read " + dict.size() + " dictionary words");
 
     // Set a custom info stream if specified

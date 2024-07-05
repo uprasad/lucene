@@ -3,7 +3,7 @@
 import argparse
 import time
 from collections import defaultdict
-from strace_events import strace_events, OpenAt3, OpenAt4, Write, Read, LSeek, Close, MMap, SysCall
+from strace_events import strace_events, OpenAt3, OpenAt4, Write, Read, LSeek, Close, MMap, Unlink, SysCall
 from tqdm import tqdm
 
 BLOCK_SIZE=8192
@@ -64,6 +64,8 @@ def strace_events_viz(strace_file, with_pids=False):
     elif isinstance(e, MMap):
       t = path_pos[e.path]
       t.set_description(f"{desc(e)}, (mmap)")
+    elif isinstance(e, Unlink):
+      del path_pos[e.path]
 
     time.sleep(0.01)
 
