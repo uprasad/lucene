@@ -12,6 +12,7 @@ write_re = re.compile(r'write\((\d+), .+, (\S+)\)\s+=\s+(\d+)')
 read_re = re.compile(r'read\((\d+), .+, (\d+)\)\s+=\s+(\d+)')
 lseek_re = re.compile(r'lseek\((\d+), (-?\d+), (\S+)\)\s+=\s+(\d+)')
 mmap_re = re.compile(r'mmap\(\S+, (\d+), (\S+), (\S+), (\d+), (\S+)\).+')
+unlink_re = re.compile(r'unlink\("(\S+)"\)\s+=\s+\d+')
 
 @dataclass
 class SysCall:
@@ -55,6 +56,10 @@ class MMap(SysCall):
   prot: str
   flags: str
   offset: str
+
+@dataclass
+class Unlink(SysCall):
+  pass
 
 def strace_events(strace_file, with_pids=False):
   if not strace_file:
@@ -121,6 +126,11 @@ def strace_events(strace_file, with_pids=False):
         path = fd_paths.get(fd, 'INVALID({})'.format(fd))
         event = MMap(pid, path, timestamp, length, prot, flags, offset)
 
+      unlink_match = unlink_re.fullmatch(call)
+      if unlink_match:
+        path = unlink_match.group(1)
+        event = Unlink(pid, path, timestamp)
+
       yield event
 
 if __name__ == '__main__':
@@ -144,6 +154,8 @@ if __name__ == '__main__':
       call = 'lseek("{}", {}, {}) = {}'.format(e.path, e.offset, e.whence, e.ret)
     elif isinstance(e, MMap):
       call = 'mmap({}, {}, {}, "{}", {})'.format(e.length, e.prot, e.flags, e.path, e.offset)
+    elif isinstance(e, Unlink):
+      call = 'unlink("{}")'.format(e.path)
     else:
       call = e.path
 
