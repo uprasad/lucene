@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 BLOCK_SIZE=8192
 
-def strace_events_viz(strace_file, with_pids=False):
-  events = list(strace_events(strace_file, with_pids=with_pids))
+def strace_events_viz(strace_file):
+  events = list(strace_events(strace_file))
 
   index_events = []
   event_counts = defaultdict(int)
@@ -23,10 +23,7 @@ def strace_events_viz(strace_file, with_pids=False):
 
   # Helper function for pretty-printing descriptions
   def desc(e: SysCall) -> str:
-    if with_pids:
-      return f"(pid:{e.pid}, ts:{e.timestamp}) {e.path}"
-    else:
-      return f"(ts:{e.timestamp}) {e.path}"
+    return f"(pid:{e.pid}, ts:{e.timestamp}) {e.path}"
 
   path_pos = defaultdict(tqdm)
   for e in index_events:
@@ -65,7 +62,8 @@ def strace_events_viz(strace_file, with_pids=False):
       t = path_pos[e.path]
       t.set_description(f"{desc(e)}, (mmap)")
     elif isinstance(e, Unlink):
-      del path_pos[e.path]
+      if e.path in path_pos:
+        del path_pos[e.path]
 
     time.sleep(0.01)
 
@@ -76,8 +74,7 @@ def strace_events_viz(strace_file, with_pids=False):
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Extract filesystem events from strace log')
   parser.add_argument('strace_file', type=str, help='path to the strace log')
-  parser.add_argument('--with_pids', action='store_true')
 
   args = parser.parse_args()
 
-  strace_events_viz(args.strace_file, args.with_pids)
+  strace_events_viz(args.strace_file)

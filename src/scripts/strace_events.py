@@ -61,69 +61,73 @@ class MMap(SysCall):
 class Unlink(SysCall):
   pass
 
-def strace_events(strace_file, with_pids=False):
+def strace_events(strace_file):
   if not strace_file:
     return []
 
-  fd_paths = defaultdict(str)
-  fd_paths["0"] = "STDIN"
-  fd_paths["1"] = "STDOUT"
-  fd_paths["2"] = "STDERR"
+  # Map of pid -> fd -> path
+  fd_paths = defaultdict(lambda: defaultdict(str))
+
+  def lookup_fd(pid, fd):
+    if fd == 0:
+      return "STDIN"
+    if fd == 1:
+      return "STDOUT"
+    if fd == 2:
+      return "STDERR"
+
+    return fd_paths[pid].get(fd, f"({fd})???")
 
   # Read the strace file line by line
-  # Assumes that strace has been run with the -tt -ff option, so each pid has a separate strace
+  # Assumes that strace has been run with the -tt -f option
   with open(strace_file, 'r') as strace_f:
     for line in strace_f:
-      pid, timestamp, call = None, None, None
-      if with_pids:
-        pid, timestamp, call = line.strip().split(None, 2)
-      else:
-        timestamp, call = line.strip().split(None, 1)
+      pid, timestamp, call = line.strip().split(None, 2)
 
       event = SysCall(pid, call, timestamp)
 
       openat_match = openat3_re.match(call)
       if openat_match:
         path, flags, fd = openat_match.groups()
-        fd_paths[fd] = path
+        fd_paths[pid][fd] = path
         event = OpenAt3(pid, path, timestamp, flags)
 
       openat_match = openat4_re.match(call)
       if openat_match:
         path, flags, fd = openat_match.groups()
-        fd_paths[fd] = path
+        fd_paths[pid][fd] = path
         event = OpenAt4(pid, path, timestamp, flags)
 
       close_match = close_re.match(call)
       if close_match:
         fd = close_match.group(1)
-        path = fd_paths.get(fd, 'INVALID({})'.format(fd))
+        path = lookup_fd(pid, fd)
         event = Close(pid, path, timestamp)
-        if fd in fd_paths:
-          del fd_paths[fd]
+        if fd in fd_paths[pid]:
+          del fd_paths[pid][fd]
 
       write_match = write_re.fullmatch(call)
       if write_match:
         fd, count, ret = write_match.groups()
-        path = fd_paths.get(fd, 'INVALID({})'.format(fd))
+        path = lookup_fd(pid, fd)
         event = Write(pid, path, timestamp, count, ret)
 
       read_match = read_re.fullmatch(call)
       if read_match:
         fd, count, ret = read_match.groups()
-        path = fd_paths.get(fd, 'INVALID({})'.format(fd))
+        path = lookup_fd(pid, fd)
         event = Read(pid, path, timestamp, count, ret)
 
       lseek_match = lseek_re.fullmatch(call)
       if lseek_match:
         fd, offset, whence, ret = lseek_match.groups()
-        path = fd_paths.get(fd, 'INVALID({})'.format(fd))
+        path = lookup_fd(pid, fd)
         event = LSeek(pid, path, timestamp, offset, whence, ret)
 
       mmap_match = mmap_re.fullmatch(call)
       if mmap_match:
         length, prot, flags, fd, offset = mmap_match.groups()
-        path = fd_paths.get(fd, 'INVALID({})'.format(fd))
+        path = lookup_fd(pid, fd)
         event = MMap(pid, path, timestamp, length, prot, flags, offset)
 
       unlink_match = unlink_re.fullmatch(call)
@@ -136,11 +140,10 @@ def strace_events(strace_file, with_pids=False):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Extract filesystem events from strace log')
   parser.add_argument('strace_file', type=str, help='path to the strace log')
-  parser.add_argument('--with_pids', action='store_true')
 
   args = parser.parse_args()
 
-  for e in strace_events(args.strace_file, with_pids=args.with_pids):
+  for e in strace_events(args.strace_file):
     call = ""
     if isinstance(e, OpenAt3) or isinstance(e, OpenAt4):
       call = 'open("{}, {}")'.format(e.path, e.flags)

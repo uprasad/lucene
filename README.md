@@ -26,18 +26,22 @@ java indexing.IndexData [-help]
 	[-disable_compound_file]
 ```
 
-The invocation can be wrapped in an `strace -tt -f` to dump filesystem trace logs e.g.
+The invocation can be wrapped in an `strace -tt -ff` to dump filesystem trace logs e.g.
 ```
 /home$ mkdir strace_out
-/home$ strace -tt -f \
+/home$ strace -tt -ff \
   -e openat,close,read,write,mmap,lseek,unlink \
   -o strace_out/strace.log \
-  java -cp lucene-core-9.11.0.jar:lucene.jar indexing.IndexData \ 
-  -num_docs 5000 \
-  -docs_per_segment 100
+  java -cp lucene-core-9.11.0.jar:lucene.jar indexing.IndexData -num_docs 5000 -docs_per_segment 1000
 ```
+
+Merge the per-pid strace logs with
+```
+/home$ strace-log-merge strace_out/strace.log > strace_out/strace.log
+```
+Note: The issue with using `-f` is that `strace` sometimes splits the same syscall across multiple lines, breaking the parsing code.
 
 Filesystem activity during indexing can then be visualized by running
 ```
-/home$ python3 strace_events_viz.py strace_out/strace.log --with_pids
+/home$ python3 strace_events_viz.py strace_out/strace.log
 ```
